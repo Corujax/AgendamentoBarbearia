@@ -25,7 +25,7 @@ public class AgendamentoDAO extends SQLiteOpenHelper {
     final static int VERSION = 1;
     final static String TABLE = "agendamento";
 
-    private SimpleDateFormat dateFormat = new SimpleDateFormat("ddMMyyyy HHmm");
+    private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmm");
     private Calendar calendar;
 
     public AgendamentoDAO(Context context) {
@@ -40,8 +40,9 @@ public class AgendamentoDAO extends SQLiteOpenHelper {
                 "telefone text, " +
                 "fotoAntes text," +
                 "fotoDepois text," +
-                "dataHora text," +
-                "procedimento text);";
+                "dataHora integer," +
+                "procedimento text," +
+                "novo integer);";
         db.execSQL(ddlCliente);
     }
 
@@ -53,12 +54,16 @@ public class AgendamentoDAO extends SQLiteOpenHelper {
     private ContentValues getValues(Agendamento agendamento) {
         ContentValues values = new ContentValues();
 
+        if(agendamento.isImporting()){
+            values.put("id", agendamento.getId());
+        }
         values.put("nome", agendamento.getNome());
         values.put("telefone", agendamento.getTelefone());
         values.put("fotoAntes", agendamento.getFotoAntes());
         values.put("fotoDepois", agendamento.getFotoDepois());
         values.put("procedimento", agendamento.getProcedimento().name());
         values.put("dataHora", dateFormat.format(agendamento.getDataHora().getTime()));
+        values.put("novo", agendamento.isNovo() ? 1:0);
         return values;
     }
 
@@ -76,8 +81,8 @@ public class AgendamentoDAO extends SQLiteOpenHelper {
         getWritableDatabase().delete (TABLE, "id=?", args);
     }
 
-    public Agendamento findById(String id) {
-        String[] args = { id };
+    public Agendamento findById(Long id) {
+        String[] args = { String.valueOf(id) };
         Cursor c = getReadableDatabase()
                 .rawQuery("SELECT * FROM " + TABLE +  " where id = ?", args);
         Agendamento agendamento = null;
@@ -99,6 +104,32 @@ public class AgendamentoDAO extends SQLiteOpenHelper {
         return list;
     }
 
+    public boolean verificaDisponibilidadeAgendamento(Agendamento agendamento){
+        Calendar dataHoraAnterior = Calendar.getInstance();
+        dataHoraAnterior.setTime(agendamento.getDataHora().getTime());
+        dataHoraAnterior.add(Calendar.MINUTE, -30);
+
+        Calendar dataHoraPosterior = Calendar.getInstance();
+        dataHoraPosterior.setTime(agendamento.getDataHora().getTime());
+        dataHoraPosterior.add(Calendar.MINUTE, 30);
+
+        String[] args = {
+                String.valueOf(agendamento.getId()),
+                dateFormat.format(dataHoraAnterior.getTime()),
+                dateFormat.format(dataHoraPosterior.getTime())
+        };
+
+        Cursor c = getReadableDatabase()
+                .rawQuery("SELECT count(*) as qtde FROM " + TABLE +
+                " where id <> ? and dataHora > ?  and dataHora < ?", args);
+        long qtde = 0;
+        if(c.moveToNext()){
+            qtde = c.getLong(c.getColumnIndex("qtde"));
+        }
+        c.close();
+        return qtde == 0;
+    }
+
     private Agendamento fill(Cursor c) {
         Agendamento agendamento = new Agendamento();
         agendamento.setId(c.getLong(c.getColumnIndex("id")));
@@ -115,6 +146,8 @@ public class AgendamentoDAO extends SQLiteOpenHelper {
         }
         agendamento.setDataHora(calendar);
         agendamento.setProcedimento(Procedimento.valueOf(c.getString(c.getColumnIndex("procedimento"))));
+        agendamento.setNovo(c.getInt(c.getColumnIndex("novo"))==1);
+        agendamento.setImporting(false);
         return agendamento;
     }
 }

@@ -25,6 +25,7 @@ import agendamentobarbearia.com.br.agendamentobarbearia.adapter.ViewPagerAdapter
 import agendamentobarbearia.com.br.agendamentobarbearia.dao.AgendamentoDAO;
 import agendamentobarbearia.com.br.agendamentobarbearia.model.Agendamento;
 import agendamentobarbearia.com.br.agendamentobarbearia.model.Procedimento;
+import agendamentobarbearia.com.br.agendamentobarbearia.task.AgendamentoTask;
 
 /**
  * Created by Marcello on 25/05/2017.
@@ -85,17 +86,18 @@ public class AgendamentoHelper {
                 agendamento = carregaDadosDaTela();
                 if(validate()){
                     AgendamentoDAO dao = new AgendamentoDAO(activity);
-                    if(verificarDataHora(dao, agendamento)){
+                    if(dao.verificaDisponibilidadeAgendamento(agendamento)){
                         if(agendamento.getId() == 0){
                             dao.insert(agendamento);
                         } else {
                             dao.update(agendamento);
                         }
                     } else {
+                        edtDataHora.setError("Horário conflitante.");
                         return;
                     }
+                    new AgendamentoTask(activity,agendamento).execute();
                     dao.close();
-                    activity.finish();
                 }
             }
         });
@@ -109,60 +111,8 @@ public class AgendamentoHelper {
             carregaDadosParaTela(agendamento);
         } else {
             agendamento = new Agendamento();
+            agendamento.setNovo(true);
         }
-    }
-
-
-    public boolean verificarDataHora(AgendamentoDAO dao, Agendamento agendamento){
-        boolean retorno = true;
-
-        List<Agendamento> agendamentos = dao.list();
-
-        Calendar dataDb;
-        Calendar dataDbLimit;
-        Calendar dataDbLimitNeg;
-        Calendar dataEdt = null;
-        Date dataEdtConvert;
-
-        try {
-            dataEdtConvert = format.parse(edtDataHora.getText().toString());
-
-            dataEdt = Calendar.getInstance();
-            dataEdt.setTime(dataEdtConvert);
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
-
-        for(Agendamento agendamentoDb:agendamentos){
-            dataDb = agendamentoDb.getDataHora();
-
-            dataDbLimit = Calendar.getInstance();
-            dataDbLimit.set(dataDb.get(Calendar.YEAR),
-                    dataDb.get(Calendar.MONTH),
-                    dataDb.get(Calendar.DATE),
-                    dataDb.get(Calendar.HOUR_OF_DAY),
-                    dataDb.get(Calendar.MINUTE)+29, 0);
-
-            dataDbLimitNeg = Calendar.getInstance();
-            dataDbLimitNeg.set(dataDb.get(Calendar.YEAR),
-                    dataDb.get(Calendar.MONTH),
-                    dataDb.get(Calendar.DATE),
-                    dataDb.get(Calendar.HOUR_OF_DAY),
-                    dataDb.get(Calendar.MINUTE)-30, 0);
-
-            if(agendamentoDb.getId() == agendamento.getId() && dataEdt.getTimeInMillis() == dataDb.getTimeInMillis()){
-                return retorno;
-            } else if(dataEdt.getTimeInMillis() >= dataDbLimitNeg.getTimeInMillis() &&
-                    dataEdt.getTimeInMillis() <= dataDb.getTimeInMillis() ||
-                    dataEdt.getTimeInMillis() >= dataDb.getTimeInMillis() &&
-                            dataEdt.getTimeInMillis() <= dataDbLimit.getTimeInMillis()
-                    ){
-                edtDataHora.setError("Já existe agendamento nesse periodo.");
-                retorno = false;
-                break;
-            }
-        }
-        return retorno;
     }
 
     public Agendamento carregaDadosDaTela() {
@@ -257,8 +207,6 @@ public class AgendamentoHelper {
     int yearFinal, monthFinal, dayFinal;
 
     public void onDateSet(DatePicker view, int year, int month, int day) {
-        Calendar cal = new GregorianCalendar(year, month, day);
-
         yearFinal = year;
         monthFinal = month;
         dayFinal = day;

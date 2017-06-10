@@ -1,4 +1,4 @@
-package agendamentobarbearia.com.br.agendamentobarbearia;
+package agendamentobarbearia.com.br.agendamentobarbearia.util;
 
 import android.content.ContentUris;
 import android.content.Context;

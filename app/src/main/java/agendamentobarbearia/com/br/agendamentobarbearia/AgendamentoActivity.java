@@ -16,6 +16,8 @@ import android.widget.TimePicker;
 
 import java.io.File;
 
+import agendamentobarbearia.com.br.agendamentobarbearia.util.ImageFilePath;
+
 /**
  * Created by Marcello on 25/05/2017.
  */
@@ -63,7 +65,7 @@ public class AgendamentoActivity extends AppCompatActivity implements DatePicker
             @Override
             public boolean onMenuItemClick(MenuItem item) {
                 localArquivoFoto = getExternalFilesDir(null) + "/" +
-                        System.currentTimeMillis() + ".jpg";
+                        System.currentTimeMillis() + ".png";
                 Intent intentCamera = new Intent(
                         MediaStore.ACTION_IMAGE_CAPTURE);
                 intentCamera.putExtra(MediaStore.EXTRA_OUTPUT,
